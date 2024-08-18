@@ -13,6 +13,7 @@ namespace infini
         // the longest data type currently supported by the DataType field of
         // the tensor
         alignment = sizeof(uint64_t);
+        free_blocks = std::map<size_t, size_t>();
     }
 
     Allocator::~Allocator()
@@ -32,8 +33,30 @@ namespace infini
         // =================================== 作业 ===================================
         // TODO: 设计一个算法来分配内存，返回起始地址偏移量
         // =================================== 作业 ===================================
-
-        return 0;
+        
+        if(!this->free_blocks.empty()){
+            for (auto it = this->free_blocks.begin(); it != this->free_blocks.end(); it++){
+                if(it->second >= size){
+                    size_t offset = it->first;
+                    this->free_blocks.erase(it);
+                    this->free_blocks[offset + size] = it->second - size;
+                    this->used += size;
+                    return offset;
+                }
+                
+                if (it->first + it->second == this->peak){
+                    size_t offset = it->first; 
+                    this->used += size;
+                    this->peak = std::max(this->peak, this->used);
+                    this->free_blocks.erase(it);
+                    return offset;
+                }
+            }
+        }
+        size_t offset = this->used;
+        this->used += size;
+        this->peak = std::max(this->peak, this->used);
+        return offset;
     }
 
     void Allocator::free(size_t addr, size_t size)
@@ -44,6 +67,8 @@ namespace infini
         // =================================== 作业 ===================================
         // TODO: 设计一个算法来回收内存
         // =================================== 作业 ===================================
+        this->free_blocks[addr] = size;
+        this->used -= size;
     }
 
     void *Allocator::getPtr()
